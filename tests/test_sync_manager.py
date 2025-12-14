@@ -1,6 +1,9 @@
 import pytest
 import os
 import sys
+import time
+from unittest import mock
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 from src.sync_manager import SyncManager
 from src.sync_folder_client import SyncFolderClient
@@ -74,3 +77,82 @@ def test_handle_sync_folder_change_decrypts(sync_manager, tmp_path):
     sync_manager.handle_sync_folder_change(gpg_file)
     out_file = tmp_path / "bar.txt"
     assert out_file.exists() or True  # actual decryption is mocked
+
+
+def test_handle_local_change_conflict_via_metadata(tmp_path):
+    mon = tmp_path / "mon"
+    dec = tmp_path / "dec"
+    sync = tmp_path / "sync"
+    enc_dir = sync / "encrypted_files"
+    mon.mkdir()
+    dec.mkdir()
+    enc_dir.mkdir(parents=True)
+
+    config = {
+        "local": {"monitored_path": str(mon), "decrypted_path": str(dec)},
+        "sync_folder": {"path": str(sync), "encrypted_folder": "encrypted_files"},
+        "pgp": {"key_name": "dummy", "passphrase": "", "gnupghome": str(tmp_path)},
+    }
+
+    client = SyncFolderClient(config)
+    pgp_handler = mock.Mock()
+    pgp_handler.encrypt_file.return_value = str(mon / "secret.txt.gpg")
+
+    sync_manager = SyncManager(config, client, pgp_handler)
+
+    client.upload_file = mock.Mock()
+    future_mtime = time.time() + 1_000
+    client.list_files = mock.Mock(
+        return_value=[
+            {
+                "id": os.path.join(sync_manager.sync_folder_encrypted_path, "secret.txt.gpg"),
+                "name": "secret.txt.gpg",
+                "lastModifiedDateTime": future_mtime,
+            }
+        ]
+    )
+
+    local_file = mon / "secret.txt"
+    local_file.write_text("plain")
+
+    sync_manager.handle_local_change(local_file)
+
+    conflict_path = local_file.parent / (local_file.name + ".conflict")
+
+    assert conflict_path.exists(), "Conflict copy should be written for newer remote metadata"
+    pgp_handler.encrypt_file.assert_not_called()
+    client.upload_file.assert_not_called()
+    client.list_files.assert_called_once()
+    assert not (enc_dir / "secret.txt.gpg").exists(), "Remote file should not be overwritten on conflict"
+
+
+def test_handle_local_change_skips_already_encrypted(tmp_path):
+    mon = tmp_path / "mon"
+    dec = tmp_path / "dec"
+    sync = tmp_path / "sync"
+    enc_dir = sync / "encrypted_files"
+    mon.mkdir()
+    dec.mkdir()
+    enc_dir.mkdir(parents=True)
+
+    config = {
+        "local": {"monitored_path": str(mon), "decrypted_path": str(dec)},
+        "sync_folder": {"path": str(sync), "encrypted_folder": "encrypted_files"},
+        "pgp": {"key_name": "dummy", "passphrase": "", "gnupghome": str(tmp_path)},
+    }
+
+    client = SyncFolderClient(config)
+    pgp_handler = mock.Mock()
+    sync_manager = SyncManager(config, client, pgp_handler)
+
+    client.upload_file = mock.Mock()
+    pgp_handler.encrypt_file = mock.Mock()
+
+    encrypted_file = mon / "already_encrypted.txt.gpg"
+    encrypted_file.write_text("ciphertext")
+
+    sync_manager.handle_local_change(encrypted_file)
+
+    pgp_handler.encrypt_file.assert_not_called()
+    client.upload_file.assert_not_called()
+    assert not any(enc_dir.iterdir()), "No new encrypted artifacts should be produced for .gpg inputs"
