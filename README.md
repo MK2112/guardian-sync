@@ -6,22 +6,23 @@
 ![Cloud Sync](https://img.shields.io/badge/Cloud%20Sync-Supported-blueviolet.svg)
 ![Build](https://github.com/MK2112/guardian-sync/actions/workflows/test.yml/badge.svg)
 
-guardian-sync provides a PGP encryption layer for zero-trust cloud storage. Files are automatically encrypted with PGP before they sync, and decrypted locally when needed.<br>
+guardian-sync builds a PGP encryption layer for zero-trust cloud storage.<br>
+Files are automatically PGP-encrypted before they sync, and they get decrypted locally when needed.<br>
 All encryption and decryption happens on your device, ensuring your data remains private and secure.
 
 ## Features
 
-- Automatic PGP encryption of files before they sync
-- Automatic decryption of files when they're updated
-- Works with your existing cloud sync client installation
+- Automated PGP encryption of files before they sync
+- Automated decryption of files when they're updated
+- Works with any cloud sync client
 - Monitoring for local changes
 - Event-based checking for remote changes
 
 ## Requirements
 
 - Python 3.10.x or higher
-- GnuPG installed on your system
-- Some cloud sync client installed and configured on your computer
+- [GnuPG](https://gnupg.org/) installed on your system
+- A cloud sync client installed and configured on your computer
 
 ## Installation
 
@@ -121,20 +122,20 @@ pytest ./tests/
 
 - Add a file to `secure_files/`  
   - guardian-sync encrypts it to `encrypted_files/filename.gpg`.
-
 - Sync `encrypted_files/filename.gpg` to another device  
   - guardian-sync decrypts it back to `secure_files/filename`.
 
-Your files are always encrypted before leaving your device. Only you, with your PGP key, can decrypt them.
+Your files are always encrypted before leaving your device.<br>
+Only your PGP key can decrypt them.
 
 ## Security Considerations
 
 - Your files are only stored in encrypted state in the cloud
 - Decryption happens locally on your device
 - Your PGP private key never leaves your device
-- It is recommended to use a strong, unique passphrase for your PGP key
-- If you specify your passphrase in the config file, which isn't recommended, ensure the file is properly secured
-- Only you should know your passphrase and private key, nobody else, at any point
+- It is *recommended* to use a strong, unique passphrase for your PGP key
+- If you specify your passphrase in the config file, *which is not recommended*, ensure the file is properly secured
+- Only you should know your passphrase and private key
 
 ## Troubleshooting
 
