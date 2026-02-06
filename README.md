@@ -6,13 +6,16 @@
 ![Cloud Sync](https://img.shields.io/badge/Cloud%20Sync-Supported-blueviolet.svg)
 ![Build](https://github.com/MK2112/guardian-sync/actions/workflows/test.yml/badge.svg)
 
-guardian-sync builds a PGP encryption layer for zero-trust cloud storage.<br>
-Files are automatically PGP-encrypted before they sync, and they get decrypted locally when needed.<br>
-All encryption and decryption happens on your device, ensuring your data remains private and secure.
+guardian-sync provides an encryption layer for zero-trust cloud storage.<br>
+Files are automatically encrypted before they sync, and they get decrypted locally again when needed.<br>
+Both encryption and decryption happen on your device, ensuring your data remains private.
+
+Beyond PGP, guardian-sync includes **optional post-quantum encryption** using **ML-KEM-768** (NIST FIPS 203).<br>
+This hybrid encryption is enabled by default when dependencies are available, falling back to PGP-only otherwise.
 
 ## Features
 
-- Automated PGP encryption of files before they sync
+- Automated encryption of files before they sync
 - Automated decryption of files when they're updated
 - Works with any cloud sync client
 - Monitoring for local changes
@@ -27,18 +30,18 @@ All encryption and decryption happens on your device, ensuring your data remains
 ## Installation
 
 1. Clone the repository:
-   ```
+   ```bash
    git clone https://github.com/MK2112/guardian-sync.git
    cd guardian-sync
    ```
 
 2. Install the package:
-   ```
+   ```bash
    pip install -r requirements.txt
    ```
 
 3. Create a PGP key if you don't already have one:
-   ```
+   ```bash
    gpg --full-generate-key
    ```
    Follow the prompts to create your key. Remember the name you use for your key.
@@ -111,6 +114,12 @@ All encryption and decryption happens on your device, ensuring your data remains
    - To decrypt a file, guardian-sync will automatically detect new encrypted files in your encrypted folder and decrypt them back to your monitored directory.
    - You can safely sync the encrypted folder (`encrypted_files/`) with any cloud service (e.g. Dropbox, Google Drive, OneDrive, Syncthing, etc.), knowing only encrypted data leaves your device.
 
+## Quick Uninstall
+
+```bash
+python uninstall.py
+```
+
 ### Tests
 
 Run the tests with:
@@ -126,24 +135,16 @@ pytest ./tests/
   - guardian-sync decrypts it back to `secure_files/filename`.
 
 Your files are always encrypted before leaving your device.<br>
-Only your PGP key can decrypt them.
+Only your key can decrypt them.
 
 ## Security Considerations
 
 - Your files are only stored in encrypted state in the cloud
 - Decryption happens locally on your device
 - Your PGP private key never leaves your device
-- It is *recommended* to use a strong, unique passphrase for your PGP key
+- It is *recommended* to use a strong, unique passphrase for your key
 - If you specify your passphrase in the config file, *which is not recommended*, ensure the file is properly secured
 - Only you should know your passphrase and private key
-
-## Troubleshooting
-
-- If enabled, check your log file for detailed information and auditability
-- Ensure your PGP key is properly set up and accessible
-- Verify your sync folder folder path is correct
-- Make sure the sync folder client is running and properly syncing
-- Make sure you have proper permissions for the directories in your config
 
 ## License
 
