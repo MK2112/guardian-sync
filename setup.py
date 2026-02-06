@@ -10,6 +10,8 @@ setup(
         "pyyaml>=6.0",
         "requests>=2.28.1",
         "msal>=1.20.0",
+        "cryptography>=41.0.0",
+        "liboqs-python>=0.8.0",
     ],
     entry_points={
         "console_scripts": [
