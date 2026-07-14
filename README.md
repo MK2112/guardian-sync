@@ -104,6 +104,24 @@ This hybrid encryption is enabled by default when dependencies are available, fa
    guardian-sync --config /path/to/your/config.json
    ```
 
+### Auto-Start
+
+To have guardian-sync start automatically on boot, prompt for your GPG passphrase, and have guardian-sync run in the background:
+
+```bash
+guardian-sync --auto
+```
+
+On next login, a password prompt will re-appear. However, if you specified a custom config file, include it for automated authentication:
+```bash
+guardian-sync --auto --config /path/to/your/config.json
+```
+
+To remove auto-start:
+```bash
+guardian-sync --auto --remove
+```
+
 3. **Encrypted files appear:**  
    guardian-sync will automatically:
    - Detect new or updated files in your monitored directory.
