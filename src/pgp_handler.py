@@ -8,11 +8,20 @@ import tempfile
 import hashlib
 
 
+def _zero(buf):
+    if buf is None:
+        return
+    try:
+        for i in range(len(buf)):
+            buf[i] = 0
+    except Exception:
+        pass
+
+
 class PGPHandler:
     MAX_PASSPHRASE_RETRIES = 3
 
     def __init__(self, config):
-        # Initialize PGP handler with configuration
         self.config = config
         try:
             result = subprocess.run(
@@ -27,11 +36,9 @@ class PGPHandler:
             )
 
         gnupg_home = os.path.expanduser(config["pgp"]["gnupghome"])
-        # Ensure GnuPG home exists + has strict permissions
         os.makedirs(gnupg_home, exist_ok=True)
         try:
             st = os.stat(gnupg_home)
-            # If group/other have any permissions, tighten to 0700
             if (st.st_mode & 0o077) != 0:
                 try:
                     os.chmod(gnupg_home, 0o700)
@@ -43,18 +50,32 @@ class PGPHandler:
                         f"GnuPG home has permissive permissions and could not be fixed automatically: {gnupg_home} ({e})"
                     )
         except FileNotFoundError:
-            pass  # Already ensured exists
+            pass
 
         self.gpg = gnupg.GPG(gnupghome=gnupg_home)
         self.key_name = config["pgp"]["key_name"]
-        self.passphrase = config["pgp"].get("passphrase") or os.environ.get(
-            "GUARDIAN_SYNC_PASSPHRASE"
-        )
+        config_pass = config["pgp"].get("passphrase")
+        self._passphrase = None
+        if config_pass:
+            self._passphrase = bytearray(config_pass, "utf-8")
+        elif os.environ.get("GUARDIAN_SYNC_PASSPHRASE"):
+            self._passphrase = bytearray(
+                os.environ["GUARDIAN_SYNC_PASSPHRASE"], "utf-8"
+            )
+            os.environ.pop("GUARDIAN_SYNC_PASSPHRASE", None)
         self.always_trust = bool(config["pgp"].get("always_trust", False))
         self._verify_key()
 
+    @property
+    def passphrase(self):
+        return self._passphrase.decode("utf-8") if self._passphrase else None
+
+    @passphrase.setter
+    def passphrase(self, value):
+        _zero(self._passphrase)
+        self._passphrase = bytearray(value, "utf-8") if value else None
+
     def _verify_key(self):
-        # Verify that the specified private key exists
         try:
             keys = self.gpg.list_keys(True)
             key_exists = any(
@@ -98,16 +119,19 @@ class PGPHandler:
         last_error = None
         for attempt in range(1, self.MAX_PASSPHRASE_RETRIES + 1):
             temp_fd, temp_path = tempfile.mkstemp()
-            os.close(temp_fd)  # Write to it with GPG
+            os.close(temp_fd)
 
+            secret = None
             try:
-                passphrase = self.passphrase or getpass.getpass(
+                raw = self.passphrase or getpass.getpass(
                     f"Enter PGP passphrase (attempt {attempt}/{self.MAX_PASSPHRASE_RETRIES}): "
                 )
 
+                secret = bytearray(raw, "utf-8")
+
                 with open(encrypted_path, "rb") as f:
                     status = self.gpg.decrypt_file(
-                        f, passphrase=passphrase, output=temp_path
+                        f, passphrase=secret.decode("utf-8"), output=temp_path
                     )
 
                 if status.ok:
@@ -132,11 +156,16 @@ class PGPHandler:
                 )
                 last_error = e
             finally:
+                _zero(secret)
                 self._remove(temp_path)
 
         raise RuntimeError(
             f"Decryption failed after {self.MAX_PASSPHRASE_RETRIES} attempts. Last error: {last_error}"
         )
+
+    def clear_passphrase(self):
+        _zero(self._passphrase)
+        self._passphrase = None
 
     def _remove(self, path):
         try:

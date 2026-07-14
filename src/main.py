@@ -190,6 +190,7 @@ def main():
             logging.info("Shutting down...")
             sync_manager.stop()
             file_monitor.stop()
+            pgp_handler.clear_passphrase()
             sys.exit(0)
 
         signal.signal(signal.SIGINT, signal_handler)
