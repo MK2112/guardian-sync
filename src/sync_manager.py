@@ -83,7 +83,6 @@ class SyncManager:
 
         # File metadata cache
         self.local_files = {}  # path -> last_modified_time
-        self.remote_files = {}  # path -> {id, last_modified_time}
 
         # Sync lock to prevent concurrent sync operations
         self.sync_lock = threading.Lock()

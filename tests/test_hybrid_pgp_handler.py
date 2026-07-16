@@ -33,9 +33,6 @@ class DummyHybridCrypto:
 
 
 class DummyGPG:
-    def __init__(self):
-        self._keystore = {}
-
     def list_keys(self, secret=False):
         return [
             {

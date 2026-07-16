@@ -188,7 +188,7 @@ def main():
             config["local"]["monitored_path"], sync_manager.handle_local_change
         )
 
-        def signal_handler(sig, frame):
+        def signal_handler(_sig, _frame):
             logging.info("Shutting down...")
             file_monitor.stop()
             sync_manager.stop()

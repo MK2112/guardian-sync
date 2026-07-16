@@ -6,7 +6,6 @@ import pytest
 from unittest import mock
 from src.file_monitor import FileMonitor, FileChangeHandler
 import time
-from watchdog.events import FileSystemEvent
 
 
 def test_file_monitor_triggers_callback(tmp_path):

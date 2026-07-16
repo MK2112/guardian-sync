@@ -21,8 +21,8 @@ def test_main_entry(
     MockODC,
     MockHybridPGP,
     MockLoadConfig,
-    MockCheckAndroid,
-    MockSetupLogging,
+    _MockCheckAndroid,
+    _MockSetupLogging,
     tmp_path,
 ):
     config = {
