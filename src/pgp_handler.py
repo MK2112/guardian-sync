@@ -8,6 +8,33 @@ import tempfile
 import hashlib
 
 
+class _SecretKeyringFilter(logging.Filter):
+    def filter(self, record):
+        return "--secret-keyring" not in record.getMessage()
+
+
+logging.getLogger("gnupg").addFilter(_SecretKeyringFilter())
+
+# GnuPG 2.4 emits DECRYPTION_KEY status that gnupg library < 2.4.0 doesn't handle
+try:
+    import gnupg._parsers as _parsers
+
+    _orig_verify_handle = _parsers.Verify._handle_status
+
+    def _patched_handle_status(self, key, value):
+        try:
+            return _orig_verify_handle(self, key, value)
+        except ValueError as e:
+            if "DECRYPTION_KEY" in str(e):
+                pass
+            else:
+                raise
+
+    _parsers.Verify._handle_status = _patched_handle_status
+except Exception:
+    pass
+
+
 def _zero(buf):
     if buf is None:
         return
@@ -52,8 +79,10 @@ class PGPHandler:
         except FileNotFoundError:
             pass
 
-        self.gpg = gnupg.GPG(gnupghome=gnupg_home)
+        self.gpg = gnupg.GPG(homedir=gnupg_home)
+        self.gpg.secring = None
         self.key_name = config["pgp"]["key_name"]
+        self.key_fingerprint = None
         config_pass = config["pgp"].get("passphrase")
         self._passphrase = None
         if config_pass:
@@ -78,13 +107,31 @@ class PGPHandler:
     def _verify_key(self):
         try:
             keys = self.gpg.list_keys(True)
-            key_exists = any(
-                self.key_name in key["uids"][0] for key in keys if "uids" in key
-            )
-            if not key_exists:
-                raise ValueError(
-                    f"PGP key '{self.key_name}' not found in keyring. Use 'gpg --import' or generate it with 'gpg --full-generate-key'."
+            for key in keys:
+                if "uids" in key and any(self.key_name in uid for uid in key["uids"]):
+                    self.key_fingerprint = key["fingerprint"]
+                    return
+
+            secret_keys = self.gpg.list_keys(True)
+            public_keys = self.gpg.list_keys()
+
+            def _fmt(keys):
+                return (
+                    "\n".join(
+                        f"  - {key['uids'][0]} (keyid: {key['keyid']})"
+                        for key in keys
+                        if "uids" in key
+                    )
+                    if keys
+                    else "  (none)"
                 )
+
+            raise ValueError(
+                f"PGP key '{self.key_name}' not found in keyring.\n"
+                f"Secret keys:\n{_fmt(secret_keys)}\n"
+                f"Public keys:\n{_fmt(public_keys)}\n\n"
+                "Use 'gpg --import' or generate one with 'gpg --full-generate-key'."
+            )
         except Exception as e:
             raise RuntimeError(f"Failed to access GPG keyring: {str(e)}")
 
@@ -94,9 +141,9 @@ class PGPHandler:
 
         try:
             with open(file_path, "rb") as f:
-                status = self.gpg.encrypt_file(
+                status = self.gpg.encrypt(
                     f,
-                    recipients=[self.key_name],
+                    self.key_fingerprint,
                     output=output_path,
                     always_trust=self.always_trust,
                 )
@@ -148,7 +195,7 @@ class PGPHandler:
                         f"Attempt {attempt}: Decryption failed — {status.status}"
                     )
                     last_error = RuntimeError(
-                        f"Decryption failed: {status.status} — {status.stderr}"
+                        f"Decryption failed: {status.status} — {getattr(status, 'stderr', 'unknown')}"
                     )
             except Exception as e:
                 logging.error(
