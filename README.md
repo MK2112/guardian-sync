@@ -35,9 +35,14 @@ This hybrid encryption is enabled by default when dependencies are available, fa
    cd guardian-sync
    ```
 
-2. Install the package:
+2. Install the package (installs the `guardian-sync` CLI command and all dependencies):
    ```bash
-   pip install -r requirements.txt
+   pip install .
+   ```
+   
+   For development (editable mode):
+   ```bash
+   pip install -e .
    ```
 
 3. Create a PGP key if you don't already have one:
