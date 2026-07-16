@@ -4,3 +4,4 @@ src/__init__.py
 src/__pycache__/*
 tests/__pycache__/*
 build/*
+config.json
