@@ -3,6 +3,7 @@ import sys
 import stat
 import time
 import pytest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
@@ -12,59 +13,47 @@ from src.sync_folder_client import SyncFolderClient
 from src.sync_manager import SyncManager
 
 
-class ChecksumGPG:
-    """GPG stub that writes decrypted output different than original to trigger checksum mismatch."""
-
-    def __init__(self, *a, **kw):
-        pass
-
-    def list_keys(self, priv):
-        return [{"uids": ["dummy-key"]}]
-
-    def encrypt_file(self, f, recipients, output, always_trust):
-        class Status:
-            ok = True
-            status = "ok"
-            stderr = None
-
-        # create an encrypted placeholder
-        with open(output, "wb") as out:
-            out.write(b"cipher")
-        return Status()
-
-    def decrypt_file(self, f, passphrase, output):
-        # write output that does not match original checksum
-        with open(output, "wb") as out:
-            out.write(b"tampered-after-encrypt")
-
-        class Status:
-            ok = True
-            status = "ok"
-            stderr = None
-
-        return Status()
-
-
 def test_validate_decryption_fails_on_checksum_mismatch(
     tmp_path, monkeypatch, dummy_config
 ):
-    # Set up original file and encrypted file
     cfg = dummy_config.copy()
     cfg["pgp"]["gnupghome"] = str(tmp_path)
-    # monkeypatch gnupg
-    monkeypatch.setattr("src.pgp_handler.gnupg.GPG", ChecksumGPG)
 
-    # initialize to ensure gnupg GPG stub is used and internal state set
+    class TamperingGPG:
+        def __init__(self, *a, **kw):
+            pass
+
+        def list_keys(self, priv):
+            return [
+                {
+                    "uids": ["dummy-key"],
+                    "fingerprint": "ABCDEF1234567890ABCDEF1234567890",
+                    "keyid": "1234567890",
+                }
+            ]
+
+        def decrypt_file(self, f, passphrase=None, output=None):
+            if output:
+                with open(output, "wb") as out:
+                    out.write(b"tampered-after-encrypt")
+
+            class Status:
+                ok = True
+                status = "ok"
+                stderr = None
+
+            return Status()
+
+    monkeypatch.setattr("src.pgp_handler.gnupg.GPG", TamperingGPG)
+
     handler = PGPHandler(cfg)
 
     orig = tmp_path / "orig.txt"
     orig.write_bytes(b"original-data")
 
-    # create a fake encrypted file
     enc = tmp_path / "orig.txt.gpg"
     enc.write_bytes(b"cipher")
 
-    # decrypt with verify_with pointing at original -> should raise due to checksum mismatch
     with pytest.raises(RuntimeError) as exc:
         handler.decrypt_file(str(enc), verify_with=str(orig))
 
@@ -87,7 +76,13 @@ def test_gnupghome_permissions_hardened(tmp_path, monkeypatch, dummy_config):
             pass
 
         def list_keys(self, priv):
-            return [{"uids": ["dummy-key"]}]
+            return [
+                {
+                    "uids": ["dummy-key"],
+                    "fingerprint": "ABCDEF1234567890ABCDEF1234567890",
+                    "keyid": "1234567890",
+                }
+            ]
 
     monkeypatch.setattr("src.pgp_handler.gnupg.GPG", SimpleGPG)
     # subprocess.run should report gpg present
