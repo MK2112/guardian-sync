@@ -40,12 +40,13 @@ class DummyGPG:
         return [
             {
                 "keyid": "ABC123",
+                "fingerprint": "ABCDEF1234567890ABCDEF1234567890",
                 "uids": ["test-key <test@example.com>"],
                 "pubkey": "PUBKEYDATA123",
             }
         ]
 
-    def encrypt(self, data, recipients=None, always_trust=False):
+    def encrypt(self, data, *recipients, **kwargs):
         result = DummyEncryptResult()
         result.data = b"GPGENC:" + data
         return result
@@ -80,6 +81,7 @@ class DummyPGPHandler:
     def __init__(self, config):
         self.config = config
         self.key_name = config["pgp"]["key_name"]
+        self.key_fingerprint = "ABCDEF1234567890ABCDEF1234567890"
         self.passphrase = config["pgp"].get("passphrase")
         self.always_trust = bool(config["pgp"].get("always_trust", False))
         self.gpg = DummyGPG()
