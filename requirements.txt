@@ -3,5 +3,6 @@ watchdog>=2.1.9
 gnupg
 cryptography>=41.0.0
 liboqs-python>=0.8.0
+setuptools
 #pytest
 #pytest-mock
