@@ -82,7 +82,7 @@ class HybridPGPHandler:
             plaintext_bytes = json.dumps(data).encode("utf-8")
             encrypted = self.pgp_handler.gpg.encrypt(
                 plaintext_bytes,
-                recipients=[self.pgp_handler.key_name],
+                self.pgp_handler.key_fingerprint,
                 always_trust=self.pgp_handler.always_trust,
             )
             if not encrypted.ok:
