@@ -1,0 +1,20 @@
+Metadata-Version: 2.4
+Name: guardian-sync
+Version: 0.0.1
+Summary: A middleware for PGP encryption of cloud synced files
+Author: MK2112
+Author-email: mk2112@protonmail.com
+Keywords: sync,pgp,encryption,security,cloud,guardian-sync
+Requires-Python: >=3.10
+License-File: LICENSE
+Requires-Dist: gnupg>=2.3.1
+Requires-Dist: watchdog>=2.1.9
+Requires-Dist: cryptography>=41.0.0
+Requires-Dist: liboqs-python>=0.8.0
+Dynamic: author
+Dynamic: author-email
+Dynamic: keywords
+Dynamic: license-file
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
