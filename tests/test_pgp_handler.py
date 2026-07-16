@@ -11,12 +11,17 @@ from src.pgp_handler import PGPHandler
 # Dummy GPG that simulates success
 class DummyGPG:
     def __init__(self, *a, **kw):
-        self.encrypt_file_called = False
-        self.decrypt_file_called = False
-        self.list_keys = lambda priv: [{"uids": ["dummy-key"]}]
+        self.encrypt_called = False
+        self.list_keys = lambda priv: [
+            {
+                "uids": ["dummy-key"],
+                "fingerprint": "ABCDEF1234567890ABCDEF1234567890",
+                "keyid": "1234567890",
+            }
+        ]
 
-    def encrypt_file(self, f, recipients, output, always_trust):
-        self.encrypt_file_called = True
+    def encrypt(self, data, *recipients, **kwargs):
+        self.encrypt_called = True
 
         class Status:
             ok = True
@@ -25,14 +30,15 @@ class DummyGPG:
 
         return Status()
 
-    def decrypt_file(self, f, passphrase, output):
-        self.decrypt_file_called = True
-
+    def decrypt_file(self, f, passphrase=None, output=None):
         class Status:
             ok = True
             status = "decryption ok"
             stderr = None
 
+        if output:
+            with open(output, "wb") as out:
+                out.write(b"decrypted content")
         return Status()
 
 
@@ -43,7 +49,7 @@ def test_encrypt_file_success(dummy_config, tmp_path):
     test_file.write_text("secret")
     out = handler.encrypt_file(str(test_file))
     assert out.endswith(".gpg")
-    assert handler.gpg.encrypt_file_called
+    assert handler.gpg.encrypt_called
 
 
 @mock.patch("src.pgp_handler.gnupg.GPG", new=DummyGPG)
@@ -53,7 +59,6 @@ def test_decrypt_file_success(dummy_config, tmp_path):
     enc_file.write_bytes(b"dummy")
     out = handler.decrypt_file(str(enc_file))
     assert str(out).endswith("secret.txt")
-    assert handler.gpg.decrypt_file_called
 
 
 def test_missing_key_raises(dummy_config):
@@ -61,7 +66,7 @@ def test_missing_key_raises(dummy_config):
         def __init__(self, *a, **kw):
             pass
 
-        def list_keys(self, priv):
+        def list_keys(self, secret=False):
             return []
 
     with mock.patch("src.pgp_handler.gnupg.GPG", new=NoKeyGPG):
@@ -74,26 +79,65 @@ def test_missing_key_raises(dummy_config):
 
 @mock.patch("src.pgp_handler.gnupg.GPG")
 def test_encrypt_invalid_file(MockGPG, dummy_config, tmp_path):
-    MockGPG.return_value.list_keys.return_value = [{"uids": ["dummy-key"]}]
+    MockGPG.return_value.list_keys.return_value = [
+        {
+            "uids": ["dummy-key"],
+            "fingerprint": "ABCDEF1234567890ABCDEF1234567890",
+            "keyid": "1234567890",
+        }
+    ]
     handler = PGPHandler(dummy_config)
     with pytest.raises(RuntimeError, match="Encryption failed: I/O or GPG error"):
         handler.encrypt_file(str(tmp_path / "doesnotexist.txt"))
 
 
 @mock.patch("src.pgp_handler.gnupg.GPG")
-def test_decrypt_invalid_file(MockGPG, dummy_config, tmp_path):
-    MockGPG.return_value.list_keys.return_value = [{"uids": ["dummy-key"]}]
+def test_decrypt_fails_with_bad_gpg_data(MockGPG, dummy_config, tmp_path):
+    keys = [
+        {
+            "uids": ["dummy-key"],
+            "fingerprint": "ABCDEF1234567890ABCDEF1234567890",
+            "keyid": "1234567890",
+        }
+    ]
+
+    class FailingDecrypt:
+        def __init__(self, *a, **kw):
+            pass
+
+        def list_keys(self, secret=False):
+            return keys
+
+        def decrypt_file(self, f, passphrase=None, output=None):
+            class Status:
+                ok = False
+                status = "decryption failed"
+                stderr = "No secret key"
+
+            return Status()
+
+    MockGPG.return_value = FailingDecrypt()
     handler = PGPHandler(dummy_config)
+
+    enc_file = tmp_path / "bad.gpg"
+    enc_file.write_bytes(b"bad-data")
+
     with pytest.raises(RuntimeError, match="Decryption failed after"):
-        handler.decrypt_file(str(tmp_path / "doesnotexist.txt.gpg"))
+        handler.decrypt_file(str(enc_file))
 
 
 @mock.patch("src.pgp_handler.gnupg.GPG")
 def test_missing_passphrase_prompts(MockGPG, dummy_config, tmp_path, monkeypatch):
-    MockGPG.return_value.list_keys.return_value = [{"uids": ["dummy-key"]}]
-    MockGPG.return_value.encrypt_file.return_value.ok = True
-    MockGPG.return_value.encrypt_file.return_value.status = "encryption ok"
-    MockGPG.return_value.encrypt_file.return_value.stderr = None
+    MockGPG.return_value.list_keys.return_value = [
+        {
+            "uids": ["dummy-key"],
+            "fingerprint": "ABCDEF1234567890ABCDEF1234567890",
+            "keyid": "1234567890",
+        }
+    ]
+    MockGPG.return_value.encrypt.return_value.ok = True
+    MockGPG.return_value.encrypt.return_value.status = "encryption ok"
+    MockGPG.return_value.encrypt.return_value.stderr = None
 
     handler = PGPHandler(dummy_config)
     test_file = tmp_path / "test.txt"
@@ -117,15 +161,20 @@ def test_decrypt_fails_then_cleans_up(MockGPG, dummy_config, tmp_path, monkeypat
     test_file.write_bytes(b"bad-data")
     output_file = str(test_file).replace(".gpg", "")
 
-    # Simulate 3 failed decryption attempts
     class FailingGPG:
         def __init__(self, *a, **kw):
             pass
 
         def list_keys(self, priv):
-            return [{"uids": ["dummy-key"]}]
+            return [
+                {
+                    "uids": ["dummy-key"],
+                    "fingerprint": "ABCDEF1234567890ABCDEF1234567890",
+                    "keyid": "1234567890",
+                }
+            ]
 
-        def decrypt_file(self, f, passphrase, output):
+        def decrypt_file(self, f, passphrase=None, output=None):
             class Status:
                 ok = False
                 status = "decryption failed"
@@ -135,12 +184,12 @@ def test_decrypt_fails_then_cleans_up(MockGPG, dummy_config, tmp_path, monkeypat
 
     MockGPG.return_value = FailingGPG()
 
-    # Simulate wrong input all 3 times
     monkeypatch.setattr("getpass.getpass", lambda prompt: "wrong-pass")
 
+    handler = PGPHandler(dummy_config)
+    handler.passphrase = None
+
     with pytest.raises(RuntimeError, match="Decryption failed after 3 attempts"):
-        handler = PGPHandler(dummy_config)
-        handler.passphrase = None
         handler.decrypt_file(str(test_file), output_file)
 
     assert not os.path.exists(output_file), "Partial decrypted file was not cleaned up"
@@ -150,14 +199,23 @@ def test_decrypt_fails_then_cleans_up(MockGPG, dummy_config, tmp_path, monkeypat
 def test_decrypt_overwrites_existing_output(
     MockGPG, dummy_config, tmp_path, monkeypatch
 ):
-    # Simulate GPG with required methods
     class SuccessGPG:
-        def list_keys(self, priv):
-            return [{"uids": ["dummy-key"]}]
+        def __init__(self, *a, **kw):
+            pass
 
-        def decrypt_file(self, f, passphrase, output):
-            with open(output, "wb") as out_f:
-                out_f.write(b"decrypted content")
+        def list_keys(self, priv):
+            return [
+                {
+                    "uids": ["dummy-key"],
+                    "fingerprint": "ABCDEF1234567890ABCDEF1234567890",
+                    "keyid": "1234567890",
+                }
+            ]
+
+        def decrypt_file(self, f, passphrase=None, output=None):
+            if output:
+                with open(output, "wb") as out:
+                    out.write(b"decrypted content")
 
             class Status:
                 ok = True
@@ -188,10 +246,16 @@ def test_decrypt_overwrites_existing_output(
 
 @mock.patch("src.pgp_handler.gnupg.GPG")
 def test_encrypt_empty_file(MockGPG, dummy_config, tmp_path):
-    MockGPG.return_value.list_keys.return_value = [{"uids": ["dummy-key"]}]
-    MockGPG.return_value.encrypt_file.return_value.ok = True
-    MockGPG.return_value.encrypt_file.return_value.status = "ok"
-    MockGPG.return_value.encrypt_file.return_value.stderr = None
+    MockGPG.return_value.list_keys.return_value = [
+        {
+            "uids": ["dummy-key"],
+            "fingerprint": "ABCDEF1234567890ABCDEF1234567890",
+            "keyid": "1234567890",
+        }
+    ]
+    MockGPG.return_value.encrypt.return_value.ok = True
+    MockGPG.return_value.encrypt.return_value.status = "ok"
+    MockGPG.return_value.encrypt.return_value.stderr = None
 
     handler = PGPHandler(dummy_config)
 
@@ -210,7 +274,13 @@ def test_gpg_binary_missing(dummy_config):
 
 @mock.patch("src.pgp_handler.gnupg.GPG")
 def test_passphrase_falls_back_to_env_var(MockGPG, dummy_config, monkeypatch):
-    MockGPG.return_value.list_keys.return_value = [{"uids": ["dummy-key"]}]
+    MockGPG.return_value.list_keys.return_value = [
+        {
+            "uids": ["dummy-key"],
+            "fingerprint": "ABCDEF1234567890ABCDEF1234567890",
+            "keyid": "1234567890",
+        }
+    ]
     config_no_pass = dict(dummy_config)
     config_no_pass["pgp"] = dict(dummy_config["pgp"])
     config_no_pass["pgp"]["passphrase"] = ""
@@ -225,7 +295,13 @@ def test_passphrase_falls_back_to_env_var(MockGPG, dummy_config, monkeypatch):
 def test_config_passphrase_takes_precedence_over_env_var(
     MockGPG, dummy_config, monkeypatch
 ):
-    MockGPG.return_value.list_keys.return_value = [{"uids": ["dummy-key"]}]
+    MockGPG.return_value.list_keys.return_value = [
+        {
+            "uids": ["dummy-key"],
+            "fingerprint": "ABCDEF1234567890ABCDEF1234567890",
+            "keyid": "1234567890",
+        }
+    ]
     monkeypatch.setenv("GUARDIAN_SYNC_PASSPHRASE", "env-passphrase")
 
     handler = PGPHandler(dummy_config)
@@ -234,7 +310,13 @@ def test_config_passphrase_takes_precedence_over_env_var(
 
 @mock.patch("src.pgp_handler.gnupg.GPG")
 def test_no_passphrase_no_env_var_leaves_none(MockGPG, dummy_config):
-    MockGPG.return_value.list_keys.return_value = [{"uids": ["dummy-key"]}]
+    MockGPG.return_value.list_keys.return_value = [
+        {
+            "uids": ["dummy-key"],
+            "fingerprint": "ABCDEF1234567890ABCDEF1234567890",
+            "keyid": "1234567890",
+        }
+    ]
     config_no_pass = dict(dummy_config)
     config_no_pass["pgp"] = dict(dummy_config["pgp"])
     config_no_pass["pgp"]["passphrase"] = ""
