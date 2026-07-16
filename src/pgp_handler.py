@@ -112,7 +112,6 @@ class PGPHandler:
                     self.key_fingerprint = key["fingerprint"]
                     return
 
-            secret_keys = self.gpg.list_keys(True)
             public_keys = self.gpg.list_keys()
 
             def _fmt(keys):
@@ -128,7 +127,6 @@ class PGPHandler:
 
             raise ValueError(
                 f"PGP key '{self.key_name}' not found in keyring.\n"
-                f"Secret keys:\n{_fmt(secret_keys)}\n"
                 f"Public keys:\n{_fmt(public_keys)}\n\n"
                 "Use 'gpg --import' or generate one with 'gpg --full-generate-key'."
             )
