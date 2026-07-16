@@ -7,7 +7,9 @@ class SyncFolderClient:
         """Initialize sync folder client with configuration."""
         self.config = config
         # Get sync folder path from config or try to detect it
-        self.sync_folder_path = config.get("sync_folder", {}).get("path")
+        self.sync_folder_path = os.path.expanduser(
+            config.get("sync_folder", {}).get("path") or ""
+        )
         if not self.sync_folder_path:
             self.sync_folder_path = self._detect_sync_folder_path()
         if not self.sync_folder_path or not os.path.exists(self.sync_folder_path):
@@ -16,7 +18,9 @@ class SyncFolderClient:
             )
         self.encrypted_path = os.path.join(
             self.sync_folder_path,
-            config.get("sync_folder", {}).get("encrypted_folder", "encrypted_files"),
+            os.path.expanduser(
+                config.get("sync_folder", {}).get("encrypted_folder", "encrypted_files")
+            ),
         )
         # Create encrypted folder if it doesn't exist
         os.makedirs(self.encrypted_path, exist_ok=True)
