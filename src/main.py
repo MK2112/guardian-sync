@@ -188,8 +188,8 @@ def main():
 
         def signal_handler(sig, frame):
             logging.info("Shutting down...")
-            sync_manager.stop()
             file_monitor.stop()
+            sync_manager.stop()
             pgp_handler.clear_passphrase()
             sys.exit(0)
 
