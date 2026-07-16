@@ -10,6 +10,11 @@
   "pgp": {
     "key_name": "your_key_name",
     "passphrase": "",
-    "gnupghome": "~/.gnupg"
-  }
-} 
+    "gnupghome": "~/.gnupg",
+    "always_trust": false
+  },
+  "sync": {
+    "check_interval": 60
+  },
+  "log_file": null
+}
