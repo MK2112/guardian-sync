@@ -11,7 +11,7 @@ from pathlib import Path
 @mock.patch("main.setup_logging")
 @mock.patch("main.check_android_permissions")
 @mock.patch("main.load_config")
-@mock.patch("main.PGPHandler")
+@mock.patch("main.HybridPGPHandler")
 @mock.patch("main.SyncFolderClient")
 @mock.patch("main.SyncManager")
 @mock.patch("main.FileMonitor")
@@ -19,7 +19,7 @@ def test_main_entry(
     MockFileMonitor,
     MockSyncManager,
     MockODC,
-    MockPGP,
+    MockHybridPGP,
     MockLoadConfig,
     MockCheckAndroid,
     MockSetupLogging,
@@ -45,7 +45,7 @@ def test_main_entry(
     assert MockFileMonitor.called
     assert MockSyncManager.called
     assert MockODC.called
-    assert MockPGP.called
+    assert MockHybridPGP.called
 
 
 def test_get_service_path():

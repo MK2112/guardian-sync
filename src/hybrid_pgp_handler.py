@@ -4,8 +4,13 @@ import logging
 
 from pathlib import Path
 from typing import Optional, Tuple
-from .pgp_handler import PGPHandler
-from .hybrid_encryption import HybridEncryption, HybridEncryptionUnavailableError
+
+try:
+    from .pgp_handler import PGPHandler
+    from .hybrid_encryption import HybridEncryption, HybridEncryptionUnavailableError
+except ImportError:
+    from pgp_handler import PGPHandler
+    from hybrid_encryption import HybridEncryption, HybridEncryptionUnavailableError
 
 
 class HybridPGPHandler:
@@ -225,3 +230,7 @@ class HybridPGPHandler:
                     f"Hybrid decryption failed: {str(e)}. Falling back to PGP-only."
                 )
         return self.pgp_handler.decrypt_file(encrypted_path, output_path, verify_with)
+
+    def clear_passphrase(self):
+        """Clear the PGP passphrase from memory."""
+        self.pgp_handler.clear_passphrase()

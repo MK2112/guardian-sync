@@ -10,11 +10,13 @@ from pathlib import Path
 
 try:
     from .pgp_handler import PGPHandler
+    from .hybrid_pgp_handler import HybridPGPHandler
     from .sync_folder_client import SyncFolderClient
     from .file_monitor import FileMonitor
     from .sync_manager import SyncManager
 except ImportError:
     from pgp_handler import PGPHandler
+    from hybrid_pgp_handler import HybridPGPHandler
     from sync_folder_client import SyncFolderClient
     from file_monitor import FileMonitor
     from sync_manager import SyncManager
@@ -177,7 +179,7 @@ def main():
         log_file = config.get("log_file", None)
         setup_logging(log_file)
 
-        pgp_handler = PGPHandler(config)
+        pgp_handler = HybridPGPHandler(config, hybrid_mode=True)
         sync_folder_client = SyncFolderClient(config)
 
         sync_manager = SyncManager(config, sync_folder_client, pgp_handler)
