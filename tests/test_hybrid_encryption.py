@@ -14,33 +14,32 @@ class MockLibOQS:
     def __init__(self):
         self.kem_instance = None
 
-    def KeyEncapsulation(self, algorithm, public_key=None):
-        self.kem_instance = MockKEM(algorithm, public_key)
+    def KeyEncapsulation(self, algorithm, secret_key=None):
+        self.kem_instance = MockKEM(algorithm, secret_key)
         return self.kem_instance
 
 
 class MockKEM:
-    def __init__(self, algorithm, public_key=None):
+    def __init__(self, algorithm, secret_key=None):
         self.algorithm = algorithm
-        self.public_key = public_key
+        self.secret_key = secret_key  # used for decryption
+        self._secret_key = os.urandom(2400)  # internal generated secret key
         self.seed = b"mock_seed_1234567890123456789012"  # 32 bytes
 
     def generate_keypair(self):
         # ML-KEM-768 public key size is 1184 bytes
-        public_key = b"PUBKEY_" + os.urandom(1177)
+        public_key = os.urandom(1184)
         return public_key
 
     def export_secret_key(self):
-        return b"SECKEY_" + os.urandom(2400)  # ML-KEM-768 secret key ~2400 bytes
+        return self._secret_key
 
-    def encap_secret(self):
-        kem_ciphertext = b"KEMCT_" + os.urandom(1088)  # ML-KEM-768 ciphertext size
+    def encap_secret(self, public_key):
+        kem_ciphertext = os.urandom(1088)  # ML-KEM-768 ciphertext size
         shared_secret = os.urandom(32)
         return kem_ciphertext, shared_secret
 
-    def decap_secret(self, kem_ciphertext):
-        # In real implementation, this would recover the exact same shared_secret
-        # For testing, we mock consistent behavior
+    def decap_secret(self, ciphertext):
         return self.seed
 
 
@@ -52,7 +51,7 @@ def mock_liboqs():
 @pytest.fixture
 def hybrid_crypto(mock_liboqs):
     # Patch at the point of use
-    with mock.patch.dict("sys.modules", {"liboqs": mock_liboqs}):
+    with mock.patch.dict("sys.modules", {"oqs": mock_liboqs}):
         # Force reimport
         import importlib
         import src.hybrid_encryption as he_module
@@ -69,8 +68,6 @@ class TestHybridEncryptionKeyGeneration:
         assert sec is not None
         assert len(pub) > 0
         assert len(sec) > 0
-        assert pub.startswith(b"PUBKEY_")
-        assert sec.startswith(b"SECKEY_")
 
     def test_generate_different_keypairs(self, hybrid_crypto):
         pub1, sec1 = hybrid_crypto.generate_keypair()

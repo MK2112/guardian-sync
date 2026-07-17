@@ -57,8 +57,8 @@ class HybridEncryption:
             from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
             # KEM encapsulation to get symmetric key
-            kem = liboqs.KeyEncapsulation(self.KEM_ALGORITHM, public_key)
-            kem_ciphertext, shared_secret = kem.encap_secret()
+            kem = liboqs.KeyEncapsulation(self.KEM_ALGORITHM)
+            kem_ciphertext, shared_secret = kem.encap_secret(public_key)
 
             # Derive symmetric key using HKDF
             hkdf = HKDF(
