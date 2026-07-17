@@ -6,9 +6,9 @@
 ![Cloud Sync](https://img.shields.io/badge/Cloud%20Sync-Supported-blueviolet.svg)
 ![Build](https://github.com/MK2112/guardian-sync/actions/workflows/test.yml/badge.svg)
 
-guardian-sync provides an encryption layer for zero-trust cloud storage.<br>
+guardian-sync provides an encryption layer for zero-trust cloud storage.<br><br>
 Files are automatically encrypted before they sync, and they get decrypted locally again when needed.<br>
-Both encryption and decryption happen on your device, ensuring your data remains private.
+Both encryption and decryption happen on your device. Your data remains private.
 
 Beyond PGP, guardian-sync includes **optional post-quantum encryption** using **ML-KEM-768** (NIST FIPS 203).<br>
 This hybrid encryption is enabled by default when dependencies are available, falling back to PGP-only otherwise.
@@ -157,17 +157,9 @@ pytest ./tests/
 - Sync `encrypted_files/filename.gpg` to another device  
   - guardian-sync decrypts it back to `secure_files/filename`.
 
-Your files are always encrypted before leaving your device.<br>
-Only your key can decrypt them.
-
-## Security Considerations
-
-- Your files are only stored in encrypted state in the cloud
-- Decryption happens locally on your device
-- Your PGP private key never leaves your device
-- It is *recommended* to use a strong, unique passphrase for your key
-- If you specify your passphrase in the config file, *which is not recommended*, ensure the file is properly secured
-- Only you should know your passphrase and private key
+It is *recommended* to use a strong, unique passphrase for your key.
+If you specify your passphrase in the config file, *which is not recommended*, ensure the file is properly secured.
+Only you should know your passphrase and private key
 
 ## License
 
