@@ -1,7 +1,7 @@
 # guardian-sync
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-red.svg)
-![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)
+![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)
 ![GPG](https://img.shields.io/badge/GPG-Encryption-brightgreen.svg)
 ![Cloud Sync](https://img.shields.io/badge/Cloud%20Sync-Supported-blueviolet.svg)
 ![Build](https://github.com/MK2112/guardian-sync/actions/workflows/test.yml/badge.svg)
@@ -21,7 +21,7 @@ This is enabled by default when dependencies are available, falling back to PGP-
 
 ## Requirements
 
-- Python 3.10.x or higher
+- Python 3.13.x or higher
 - [GnuPG](https://gnupg.org/) installed on your system
 - A cloud sync client installed and configured on your computer
 
