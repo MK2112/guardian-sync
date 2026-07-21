@@ -5,3 +5,4 @@ src/__pycache__/*
 tests/__pycache__/*
 build/*
 config.json
+__pycache__/*
