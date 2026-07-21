@@ -6,20 +6,18 @@
 ![Cloud Sync](https://img.shields.io/badge/Cloud%20Sync-Supported-blueviolet.svg)
 ![Build](https://github.com/MK2112/guardian-sync/actions/workflows/test.yml/badge.svg)
 
-guardian-sync provides an encryption layer for zero-trust cloud storage.<br><br>
-Files are automatically encrypted before they sync, and they get decrypted locally again when needed.<br>
-Both encryption and decryption happen on your device. Your data remains private.
+An encryption layer for zero-trust cloud storage.<br><br>
+Files are automatically encrypted before they sync, and they get decrypted locally again when needed.
 
-Beyond PGP, guardian-sync includes **optional post-quantum encryption** using **ML-KEM-768** (NIST FIPS 203).<br>
-This hybrid encryption is enabled by default when dependencies are available, falling back to PGP-only otherwise.
+Beyond PGP (GPG), optional post-quantum encryption using ML-KEM-768 (NIST FIPS 203) is supported.<br>
+This is enabled by default when dependencies are available, falling back to PGP-only otherwise.
 
 ## Features
 
 - Automated encryption of files before they sync
 - Automated decryption of files when they're updated
 - Works with any cloud sync client
-- Monitoring for local changes
-- Event-based checking for remote changes
+- Monitoring for local changes, event-based checking for remote changes
 
 ## Requirements
 
@@ -75,16 +73,15 @@ This hybrid encryption is enabled by default when dependencies are available, fa
    }
    ```
    
-   **Notes:**
-   - Use `sync_folder.path` to specify the full path to your cloud sync folder (e.g. for DropBox, Google Drive, SyncThing, etc.)
+   - Use `sync_folder.path` to specify the full path to your cloud sync folder
    - Set `pgp.key_name` to the name you used when creating your PGP key
-   - Leave `pgp.passphrase` empty to be prompted each time, or set it for automatic operation (less secure)
-   - Set `pgp.always_trust` to `true` only if you understand the risks; by default it is `false` for better security
+   - Leave `pgp.passphrase` empty to be prompted each time *(functionality beyond this is under development)*
+   - Set `pgp.always_trust` to `true` *only* if you understand the risks, by default it is `false`
    - Persisted logging is optional:
      - Set `log_file` to a path (e.g. `"guardian-sync.log"`) to enable file logging
      - Set `log_file` to `null` to disable file logging entirely (only console logs)
-   - All files in the monitored directory, including hidden files, are encrypted and synced.
-   - The tool automatically handles file overwrites and creates conflict files if both local and remote versions change independently.
+   - All files in the monitored directory are encrypted and synced
+   - The tool automatically handles file overwrites and creates conflict files if both local and remote versions change independently
 
 ## Usage
 
@@ -111,8 +108,7 @@ This hybrid encryption is enabled by default when dependencies are available, fa
 
 ### Auto-Start
 
-To have guardian-sync start automatically on boot, prompt for your GPG passphrase, and have guardian-sync run in the background:
-
+To have guardian-sync start automatically, prompt for your GPG passphrase, and have guardian-sync run in the background:
 ```bash
 guardian-sync --auto
 ```
@@ -122,20 +118,10 @@ On next login, a password prompt will re-appear. However, if you specified a cus
 guardian-sync --auto --config /path/to/your/config.json
 ```
 
-To remove auto-start:
+To remove auto-start again:
 ```bash
 guardian-sync --auto --remove
 ```
-
-3. **Encrypted files appear:**  
-   guardian-sync will automatically:
-   - Detect new or updated files in your monitored directory.
-   - Encrypt them using your PGP key.
-   - Place the encrypted versions (e.g. `passwords.txt.gpg`) in the configured encrypted folder (e.g. `encrypted_files/`).
-
-4. **Accessing your files elsewhere:**  
-   - To decrypt a file, guardian-sync will automatically detect new encrypted files in your encrypted folder and decrypt them back to your monitored directory.
-   - You can safely sync the encrypted folder (`encrypted_files/`) with any cloud service (e.g. Dropbox, Google Drive, OneDrive, Syncthing, etc.), knowing only encrypted data leaves your device.
 
 ## Quick Uninstall
 
@@ -145,21 +131,13 @@ python uninstall.py
 
 ### Tests
 
-Run the tests with:
 ```bash
 pytest ./tests/
 ```
 
-### Example Workflow
-
-- Add a file to `secure_files/`  
-  - guardian-sync encrypts it to `encrypted_files/filename.gpg`.
-- Sync `encrypted_files/filename.gpg` to another device  
-  - guardian-sync decrypts it back to `secure_files/filename`.
-
 It is *recommended* to use a strong, unique passphrase for your key.
 If you specify your passphrase in the config file, *which is not recommended*, ensure the file is properly secured.
-Only you should know your passphrase and private key
+Only you should be in posession of your passphrase and private key
 
 ## License
 
