@@ -1,5 +1,6 @@
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 from src.sync_manager import SyncManager
 from src.sync_folder_client import SyncFolderClient
@@ -7,13 +8,13 @@ from src.sync_folder_client import SyncFolderClient
 
 class WritingDummyPGP:
     def encrypt_file(self, file_path, output_path=None):
-        out = (output_path or (str(file_path) + ".gpg"))
+        out = output_path or (str(file_path) + ".gpg")
         with open(out, "w") as f:
             f.write("encrypted")
         return out
 
     def decrypt_file(self, encrypted_path, output_path=None):
-        out = output_path or str(encrypted_path).replace('.gpg', '')
+        out = output_path or str(encrypted_path).replace(".gpg", "")
         with open(out, "w") as f:
             f.write("decrypted")
         return out
@@ -51,7 +52,7 @@ def test_handle_local_change_nested_paths(tmp_path):
     expected_enc = enc_dir / "sub1" / "sub2" / "secret.txt.gpg"
     assert expected_enc.exists(), f"Expected encrypted file at {expected_enc}"
 
-    # Now simulate a remote change notification and ensure decryption works to the correct place
+    # Now simulate a remote change notification and ensure decryption preserves nested structure
     sm.handle_sync_folder_change(expected_enc)
-    expected_dec = dec / "secret.txt"  # decrypts to decrypted_path root by name
-    assert expected_dec.exists(), "Decrypted file should exist"
+    expected_dec = dec / "sub1" / "sub2" / "secret.txt"
+    assert expected_dec.exists(), "Decrypted file should preserve nested structure"

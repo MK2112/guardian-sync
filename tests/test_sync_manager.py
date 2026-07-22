@@ -12,10 +12,20 @@ from src.sync_folder_client import SyncFolderClient
 
 class DummyPGP:
     def encrypt_file(self, file_path, output_path=None):
-        return str(file_path) + ".gpg"
+        out = output_path or (str(file_path) + ".gpg")
+        with open(file_path, "rb") as f:
+            data = f.read()
+        with open(out, "wb") as f:
+            f.write(data)
+        return out
 
-    def decrypt_file(self, encrypted_path, output_path=None):
-        return output_path or str(encrypted_path).replace(".gpg", "")
+    def decrypt_file(self, encrypted_path, output_path=None, verify_with=None):
+        out = output_path or str(encrypted_path).replace(".gpg", "")
+        with open(encrypted_path, "rb") as f:
+            data = f.read()
+        with open(out, "wb") as f:
+            f.write(data)
+        return out
 
 
 @pytest.fixture
@@ -82,15 +92,20 @@ def test_handle_local_change_ignores_temp(sync_manager, tmp_path):
 
 
 def test_handle_sync_folder_change_decrypts(sync_manager, tmp_path):
-    gpg_file = tmp_path / "bar.txt.gpg"
+    enc_path = tmp_path / "encrypted_files"
+    enc_path.mkdir(exist_ok=True)
+    gpg_file = enc_path / "bar.txt.gpg"
     gpg_file.write_text("encrypted")
-    sync_manager.local_path = tmp_path
+    mon_path = tmp_path / "monitored"
+    mon_path.mkdir(exist_ok=True)
     dec_path = tmp_path / "decrypted"
-    dec_path.mkdir()
+    dec_path.mkdir(exist_ok=True)
+    sync_manager.local_path = mon_path
     sync_manager.decrypted_path = dec_path
+    sync_manager.sync_folder_encrypted_path = str(enc_path)
     sync_manager.handle_sync_folder_change(gpg_file)
     out_file = dec_path / "bar.txt"
-    assert out_file.exists() or True  # actual decryption is mocked
+    assert out_file.exists()
 
 
 def test_handle_local_change_conflict_via_metadata(tmp_path):
