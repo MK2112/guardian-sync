@@ -234,18 +234,20 @@ class SyncManager:
                 # Encrypt the file
                 temp_encrypted = self.pgp_handler.encrypt_file(file_path)
 
-                # Upload to sync folder
-                sync_folder_path = os.path.join(
-                    self.sync_folder_encrypted_path, f"{rel_path}.gpg"
-                )
-                self.sync_folder_client.upload_file(temp_encrypted, sync_folder_path)
+                # Upload to sync folder, clean up temp even on failure
+                try:
+                    sync_folder_path = os.path.join(
+                        self.sync_folder_encrypted_path, f"{rel_path}.gpg"
+                    )
+                    self.sync_folder_client.upload_file(
+                        temp_encrypted, sync_folder_path
+                    )
 
-                # Update local file cache
-                self.local_files[str(rel_path)] = file_path.stat().st_mtime
-
-                # Clean up encrypted temp file left by encrypt_file
-                if os.path.exists(temp_encrypted):
-                    os.unlink(temp_encrypted)
+                    # Update local file cache
+                    self.local_files[str(rel_path)] = file_path.stat().st_mtime
+                finally:
+                    if os.path.exists(temp_encrypted):
+                        os.unlink(temp_encrypted)
 
             except Exception as e:
                 logging.error(f"Error handling local change for {file_path}: {str(e)}")
@@ -269,12 +271,18 @@ class SyncManager:
 
                 logging.info(f"Sync folder file changed: {file_path.name}")
 
-                # Get the decrypted file name (remove .gpg extension)
-                decrypted_name = file_path.name.rsplit(".gpg", 1)[0]
+                # Get the decrypted file path preserving nested structure
+                try:
+                    rel_file = file_path.relative_to(
+                        Path(self.sync_folder_encrypted_path)
+                    )
+                except ValueError:
+                    rel_file = Path(file_path.name)
+                decrypted_rel = rel_file.with_suffix("")
+                decrypted_path = self.decrypted_path / decrypted_rel
 
                 # Skip decryption if the target is within the monitored directory
                 # to prevent an infinite encrypt→decrypt→re-encrypt loop
-                decrypted_path = self.decrypted_path / decrypted_name
                 if self._is_within(self.local_path, decrypted_path):
                     logging.info(
                         f"Skipping decryption of {file_path.name}: "
@@ -287,20 +295,20 @@ class SyncManager:
 
                 # Copy the encrypted file to the temp location
                 shutil.copy2(file_path, temp_encrypted)
-
-                # Decrypt the file
-                os.makedirs(self.decrypted_path, exist_ok=True)
-                self.pgp_handler.decrypt_file(temp_encrypted, str(decrypted_path))
-                # Harden permissions on decrypted output (owner read/write only)
                 try:
-                    os.chmod(decrypted_path, 0o600)
-                except Exception as e:
-                    logging.warning(
-                        f"Failed to set secure permissions on {decrypted_path}: {e}"
-                    )
-
-                # Clean up temporary encrypted file
-                os.unlink(temp_encrypted)
+                    # Decrypt the file
+                    os.makedirs(decrypted_path.parent, exist_ok=True)
+                    self.pgp_handler.decrypt_file(temp_encrypted, str(decrypted_path))
+                    # Harden permissions on decrypted output (owner read/write only)
+                    try:
+                        os.chmod(decrypted_path, 0o600)
+                    except Exception as e:
+                        logging.warning(
+                            f"Failed to set secure permissions on {decrypted_path}: {e}"
+                        )
+                finally:
+                    if os.path.exists(temp_encrypted):
+                        os.unlink(temp_encrypted)
 
                 logging.info(f"Decrypted sync folder file to {decrypted_path}")
 
