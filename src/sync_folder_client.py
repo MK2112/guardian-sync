@@ -108,8 +108,9 @@ class SyncFolderClient:
 
     def ensure_folder_exists(self, folder_path):
         """Ensure a folder exists in the sync folder."""
-        if folder_path.startswith("/"):
-            folder_path = folder_path.lstrip("/")
-        full_path = os.path.join(self.sync_folder_path, folder_path)
+        if os.path.isabs(folder_path):
+            full_path = folder_path
+        else:
+            full_path = os.path.join(self.sync_folder_path, folder_path)
         os.makedirs(full_path, exist_ok=True)
         return {"id": folder_path, "name": os.path.basename(folder_path)}
