@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import tempfile
 
 from pathlib import Path
 from typing import Optional, Tuple
@@ -205,8 +206,6 @@ class HybridPGPHandler:
                 pgp_ciphertext = self.hybrid_crypto.decrypt_hybrid(
                     data, self.pq_secret_key
                 )
-                import tempfile
-
                 temp_fd, temp_path = tempfile.mkstemp(suffix=".gpg")
                 os.close(temp_fd)
 
