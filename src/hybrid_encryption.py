@@ -17,7 +17,7 @@ class HybridEncryptionUnavailableError(Exception):
 
 class HybridEncryption:
     # Hybrid encryption using ML-KEM for key exchange and ChaCha20-Poly1305 for symmetric encryption.
-    # [Version: 1 byte][KEM pubkey: ~1184 bytes][Ciphertext: variable][AuthTag: 16 bytes]
+    # [Version: 1 byte][KEM ciphertext: 1088 bytes][nonce: 12 bytes][ChaCha20-Poly1305 ciphertext+tag: variable]
     # File format version for hybrid encryption
     HYBRID_FORMAT_VERSION = 1
 
