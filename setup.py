@@ -2,14 +2,16 @@ from setuptools import setup, find_packages
 
 setup(
     name="guardian-sync",
-    version="0.0.1",
+    version="0.1.0",
     packages=find_packages(),
     install_requires=[
         "gnupg>=2.3.1",
         "watchdog>=2.1.9",
         "cryptography>=41.0.0",
-        "liboqs-python>=0.8.0",
     ],
+    extras_require={
+        "pq": ["liboqs-python>=0.8.0"],
+    },
     entry_points={
         "console_scripts": [
             "guardian-sync=src.main:main",
